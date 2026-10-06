@@ -20,7 +20,7 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 SRC = sys.argv[1]
 OUT = os.path.join(ROOT, "portrait.svg")
 NAME = "Bhavya Bharadwaj"
-COLS = 130
+COLS = int(os.environ.get("COLS", 140))
 CHARS = " .,:;-~=+*o#%@"          # light -> heavy ink
 ASPECT = 1.9                      # a monospace cell is ~1.9x taller than wide
 
@@ -48,12 +48,14 @@ lo, hi = np.percentile(gray[mask > 0.5], [3, 97])
 tone = np.clip((gray - lo) / max(hi - lo, 1), 0, 1)
 soft = cv2.GaussianBlur(tone, (0, 0), 5)
 sharp = cv2.GaussianBlur(tone, (0, 0), 1.2)
-tone = np.clip(tone - 0.6 * np.clip(soft - sharp, 0, 1), 0, 1)
+EDGE = float(os.environ.get("EDGE", 1.6))   # how hard outlines are pushed toward ink
+tone = np.clip(tone - EDGE * np.clip(soft - sharp, 0, 1), 0, 1)
+tone = tone ** float(os.environ.get("GAMMA", 0.85))  # <1 adds a little shading to light skin
 ink = (1 - tone) * mask          # 0 = blank, 1 = heaviest character
 
 rows = int(COLS * h / w / ASPECT)
 grid = cv2.resize(ink, (COLS, rows), interpolation=cv2.INTER_AREA)
-lines = ["".join(CHARS[int(v * (len(CHARS) - 1) + 0.5)] if v > 0.12 else " " for v in row) for row in grid]
+lines = ["".join(CHARS[int(v * (len(CHARS) - 1) + 0.5)] if v > 0.09 else " " for v in row) for row in grid]
 while lines and not lines[0].strip():
     lines.pop(0)
 rows = len(lines)
