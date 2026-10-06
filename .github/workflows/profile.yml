@@ -1,0 +1,33 @@
+name: Refresh profile stats
+
+# Rebuilds stats.svg and contrib-graph.svg from real contribution data every day.
+"on":
+  schedule:
+    - cron: "17 6 * * *"   # about 2:17 AM Toronto time
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ["scripts/**", ".github/workflows/profile.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r scripts/requirements.txt
+      - run: python scripts/contributions.py
+      - run: python scripts/draw_stats.py
+      - run: python scripts/draw_graph.py
+      - name: Commit the refreshed images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git add data/contributions.json stats.svg contrib-graph.svg
+          git diff --cached --quiet || git commit -m "Refresh profile stats [skip ci]"
+          git push
